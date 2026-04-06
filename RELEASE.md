@@ -1,16 +1,17 @@
 ---
-status: unpublished
-repo:
-index_pr:
-published_date:
+status: published
+repo: https://github.com/spinnakergit/a0-open-brain
+index_pr: https://github.com/agent0ai/a0-plugins/pull/208
+published_date: 2026-04-06
 version: 1.0.0
 ---
 
 # Release Status
 
 ## Publication
-- **GitHub**: (pending)
-- **Plugin Index PR**: (pending)
+- **GitHub**: https://github.com/spinnakergit/a0-open-brain
+- **Plugin Index PR**: [#208](https://github.com/agent0ai/a0-plugins/pull/208)
+- **Published**: 2026-04-06
 
 ## v1.0.0 (2026-04-06)
 
