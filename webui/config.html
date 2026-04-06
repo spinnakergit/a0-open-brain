@@ -1,0 +1,244 @@
+<html>
+<head><title>Open Brain</title></head>
+<body>
+    <div x-data="{ activeTab: 'credentials' }" x-init="
+        if (!config.supabase) config.supabase = {};
+        if (!config.supabase.url) config.supabase.url = '';
+        if (!config.supabase.secret_key) config.supabase.secret_key = '';
+        if (!config.openrouter) config.openrouter = {};
+        if (!config.openrouter.api_key) config.openrouter.api_key = '';
+        if (!config.openrouter.embedding_model) config.openrouter.embedding_model = 'openai/text-embedding-3-small';
+        if (!config.openrouter.extraction_model) config.openrouter.extraction_model = 'openai/gpt-4o-mini';
+        if (!config.source) config.source = {};
+        if (!config.source.default) config.source.default = 'agent_zero';
+        if (!config.defaults) config.defaults = {};
+        if (!config.defaults.result_limit) config.defaults.result_limit = 10;
+        if (config.defaults.match_threshold === undefined) config.defaults.match_threshold = 0.5;
+        if (config.defaults.recall_score_threshold === undefined) config.defaults.recall_score_threshold = 0.6;
+        if (!config.behavior) config.behavior = {};
+        if (config.behavior.auto_capture === undefined) config.behavior.auto_capture = true;
+        if (config.behavior.live_retrieval === undefined) config.behavior.live_retrieval = true;
+        if (!config.behavior.max_retrievals_per_session) config.behavior.max_retrievals_per_session = 3;
+        if (!config.security) config.security = {};
+        if (!config.security.max_thought_length) config.security.max_thought_length = 8000;
+        if (!config.security.max_arg_length) config.security.max_arg_length = 2000;
+        if (!config.security.http_timeout) config.security.http_timeout = 30;
+    ">
+        <template x-if="config">
+            <div>
+                <!-- Tab Navigation -->
+                <div style="display: flex; gap: 0; border-bottom: 2px solid var(--border-color, #e0e0e0); margin-bottom: 16px;">
+                    <template x-for="tab in ['credentials', 'defaults', 'behavior', 'security']">
+                        <button @click="activeTab = tab"
+                            :style="'padding: 8px 16px; border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 600; margin-bottom: -2px; color: ' + (activeTab === tab ? '#6f42c1' : 'var(--text-secondary, #888)') + '; border-bottom: 2px solid ' + (activeTab === tab ? '#6f42c1' : 'transparent')"
+                            x-text="tab.charAt(0).toUpperCase() + tab.slice(1)"></button>
+                    </template>
+                </div>
+
+                <!-- Credentials Tab -->
+                <div x-show="activeTab === 'credentials'">
+                    <div class="section-description">
+                        Open Brain talks to your existing OB1 Supabase project + OpenRouter account.
+                        If you don't have one yet, follow the
+                        <a href="https://github.com/NateBJones-Projects/OB1/blob/main/docs/01-getting-started.md" target="_blank" style="color: var(--link-color, #6f42c1);">OB1 Getting Started guide</a>
+                        first. Then see the
+                        <a href="https://github.com/spinnakergit/a0-open-brain/blob/main/docs/SETUP.md" target="_blank" style="color: var(--link-color, #6f42c1);">plugin Setup Guide</a>
+                        for the three values below.
+                    </div>
+
+                    <div class="section-title">Supabase</div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Project URL</div>
+                            <div class="field-description">Your Supabase project URL, e.g. https://yourproject.supabase.co</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="text" x-model="config.supabase.url" placeholder="https://yourproject.supabase.co">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Secret Key</div>
+                            <div class="field-description">Supabase service role / secret key. Bypasses RLS. Treat like a password.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="password" x-model="config.supabase.secret_key" placeholder="sbp_... or eyJ...">
+                        </div>
+                    </div>
+
+                    <div class="section-title">OpenRouter</div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">API Key</div>
+                            <div class="field-description">OpenRouter API key (used for embeddings + metadata extraction).</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="password" x-model="config.openrouter.api_key" placeholder="sk-or-...">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Embedding Model</div>
+                            <div class="field-description">Must be a 1536-dim model to match the OB1 thoughts.embedding column.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="text" x-model="config.openrouter.embedding_model" placeholder="openai/text-embedding-3-small">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Metadata Extraction Model</div>
+                            <div class="field-description">Cheap chat model used to tag thoughts with topics, people, and type.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="text" x-model="config.openrouter.extraction_model" placeholder="openai/gpt-4o-mini">
+                        </div>
+                    </div>
+
+                    <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px; font-size: 12px; margin-top: 12px;">
+                        <strong>Prerequisites on your Supabase project:</strong>
+                        <ul style="margin: 4px 0 0 0; padding-left: 20px;">
+                            <li><code>thoughts</code> table with <code>embedding vector(1536)</code>, <code>metadata jsonb</code>, <code>content_fingerprint text</code></li>
+                            <li><code>match_thoughts()</code> RPC (OB1 setup step 2.3)</li>
+                            <li><code>upsert_thought()</code> RPC (OB1 setup step 2.6 — optional, enables dedup)</li>
+                            <li><code>service_role</code> grants on <code>thoughts</code> (OB1 setup step 2.5)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Defaults Tab -->
+                <div x-show="activeTab === 'defaults'">
+                    <div class="section-title">Source & Limits</div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Default Source Tag</div>
+                            <div class="field-description">Tag attached to every thought captured via this plugin. Used for filtering later.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="text" x-model="config.source.default" placeholder="agent_zero">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Result Limit</div>
+                            <div class="field-description">Default max results for search / list / recall (1–50).</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="number" min="1" max="50" x-model.number="config.defaults.result_limit">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Match Threshold</div>
+                            <div class="field-description">Minimum cosine similarity (0–1) for a search hit. 0.5 is a good default.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="number" min="0" max="1" step="0.05" x-model.number="config.defaults.match_threshold">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Recall Score Threshold</div>
+                            <div class="field-description">Minimum score for <code>open_brain_recall</code> hits. OB1 canonical is 0.6.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="number" min="0" max="1" step="0.05" x-model.number="config.defaults.recall_score_threshold">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Behavior Tab -->
+                <div x-show="activeTab === 'behavior'">
+                    <div class="section-title">Flywheel Skills</div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Auto-Capture</div>
+                            <div class="field-description">Enable the auto-capture skill (saves ACT NOW items + session summaries when a session is wrapping up).</div>
+                        </div>
+                        <div class="field-control">
+                            <label class="toggle">
+                                <input type="checkbox" x-model="config.behavior.auto_capture">
+                                <span class="toggler"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Live Retrieval</div>
+                            <div class="field-description">Enable the live-retrieval skill (silently surfaces relevant thoughts on topic shifts).</div>
+                        </div>
+                        <div class="field-control">
+                            <label class="toggle">
+                                <input type="checkbox" x-model="config.behavior.live_retrieval">
+                                <span class="toggler"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Max Retrievals Per Session</div>
+                            <div class="field-description">Hard cap on how many times live-retrieval can fire in one session.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="number" min="1" max="10" x-model.number="config.behavior.max_retrievals_per_session">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Tab -->
+                <div x-show="activeTab === 'security'">
+                    <div class="section-title">Limits & Sanitization</div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Max Thought Length</div>
+                            <div class="field-description">Hard cap on characters per captured thought.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="number" min="200" max="32000" x-model.number="config.security.max_thought_length">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">Max Argument Length</div>
+                            <div class="field-description">Hard cap on free-text tool arguments (queries, topics, filters).</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="number" min="50" max="4000" x-model.number="config.security.max_arg_length">
+                        </div>
+                    </div>
+
+                    <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px; font-size: 12px; margin-bottom: 12px;">
+                        <strong>Prompt-injection sanitization</strong> is always active. Captured content is
+                        automatically stripped of injection patterns, normalized, and length-capped before
+                        being written to Open Brain. This cannot be disabled.
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <div class="field-title">HTTP Timeout (seconds)</div>
+                            <div class="field-description">Max wait for any single Supabase / OpenRouter call.</div>
+                        </div>
+                        <div class="field-control">
+                            <input type="number" min="5" max="120" x-model.number="config.security.http_timeout">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</body>
+</html>

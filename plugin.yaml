@@ -1,0 +1,11 @@
+name: open_brain
+title: Open Brain
+description: "Unified semantic memory for Agent Zero. Capture, search, recall and digest thoughts across every AI client via the Open Brain (OB1) Supabase + pgvector + OpenRouter stack. Matches the upstream MCP server capture pattern with optional dedup and source filtering."
+version: 1.0.0
+author: Travel Jamboree
+homepage: https://github.com/spinnakergit/a0-open-brain
+settings_sections:
+  - external
+per_project_config: true
+per_agent_config: true
+always_enabled: false

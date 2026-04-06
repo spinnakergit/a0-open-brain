@@ -1,0 +1,58 @@
+# Open Brain — Default Configuration
+# Defaults used when no config.json exists yet.
+#
+# Open Brain is the user's unified semantic memory system (OB1 by @NateBJones-Projects).
+# This plugin talks to the SAME Supabase + OpenRouter backend the user already set up
+# for OB1. No second database, no duplicate memory — one brain, every AI client.
+#
+# The three credentials below match exactly what OB1's MCP edge function uses.
+
+# --- Supabase (Open Brain database) ---
+supabase:
+  # e.g. https://yourproject.supabase.co
+  url: ""
+  # Service role / secret key. Bypasses RLS. Treat like a password.
+  secret_key: ""
+
+# --- OpenRouter (embeddings + metadata extraction) ---
+openrouter:
+  api_key: ""
+  embedding_model: "openai/text-embedding-3-small"
+  extraction_model: "openai/gpt-4o-mini"
+
+# --- Source tag ---
+# Every thought captured via this plugin is tagged with this source string
+# so it can be filtered later (`source: "agent_zero"`). Matches OB1 convention.
+source:
+  default: "agent_zero"
+
+# --- Defaults for tools ---
+defaults:
+  # Max thoughts returned by search / list / recall
+  result_limit: 10
+  # Minimum similarity (0-1) for a search hit to be considered relevant
+  match_threshold: 0.5
+  # Score threshold for live-retrieval to actually surface a result
+  recall_score_threshold: 0.6
+
+# --- Behavior toggles ---
+behavior:
+  # Auto-capture: skill fires on session close, saves ACT NOW items + summary
+  auto_capture: true
+  # Live-retrieval: skill surfaces relevant thoughts on topic shifts
+  live_retrieval: true
+  # Max retrievals per session for live-retrieval (OB1 canonical: 3)
+  max_retrievals_per_session: 3
+
+# --- Security ---
+security:
+  # Max length of a single captured thought. OB1 has no hard limit but
+  # very long thoughts hurt search relevance and cost more to embed.
+  max_thought_length: 8000
+  # Max length of any free-text arg (query, filters, etc.)
+  max_arg_length: 2000
+  # Prompt-injection sanitization is ALWAYS ON and cannot be disabled.
+  # Every captured thought is stripped of injection patterns, normalized, and
+  # length-capped before it is written to Open Brain.
+  # Timeout (seconds) for any single HTTP call to Supabase / OpenRouter
+  http_timeout: 30

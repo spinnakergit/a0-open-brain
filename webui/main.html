@@ -1,0 +1,124 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px;">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color, #e0e0e0);">
+        <h3 style="margin: 0; color: #6f42c1;">Open Brain</h3>
+        <span data-obm="status-badge" style="padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fce4ec; color: #c62828;">Checking...</span>
+    </div>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+        <button data-obm="test-btn" style="background: #6f42c1; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px;">Test Connection</button>
+        <button data-obm="stats-btn" style="background: #555; color: #fff; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px;">Refresh Stats</button>
+    </div>
+
+    <div data-obm="stats-wrap" style="display: none; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 12px;">
+            <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary, #888);">Sample size</div>
+                <div data-obm="total" style="font-size: 18px; font-weight: 600;">—</div>
+            </div>
+            <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary, #888);">Oldest</div>
+                <div data-obm="oldest" style="font-size: 13px;">—</div>
+            </div>
+            <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary, #888);">Newest</div>
+                <div data-obm="newest" style="font-size: 13px;">—</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px;">
+            <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px;">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">By type</div>
+                <div data-obm="types" style="font-size: 12px;"></div>
+            </div>
+            <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px;">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">By source</div>
+                <div data-obm="sources" style="font-size: 12px;"></div>
+            </div>
+            <div style="padding: 10px; background: var(--bg-secondary, #f5f5f5); border-radius: 6px;">
+                <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">Top topics</div>
+                <div data-obm="topics" style="font-size: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div data-obm="info" style="font-size: 11px; color: var(--text-secondary, #888);">
+        Open Brain is your unified semantic memory across every AI client. Configure credentials in the plugin settings, then use <code>open_brain_capture</code>, <code>open_brain_search</code>, and friends from any agent.
+    </div>
+</div>
+
+<script>
+(function() {
+    var API_TEST = '/api/plugins/open_brain/open_brain_test';
+    var API_STATS = '/api/plugins/open_brain/open_brain_stats_api';
+
+    function $(sel) { return document.querySelector('[data-obm="' + sel + '"]'); }
+
+    function fetchApi(url, opts) { return (globalThis.fetchApi || fetch)(url, opts); }
+
+    function call(url, body) {
+        return fetchApi(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body || {})
+        }).then(function (resp) { return resp.json(); });
+    }
+
+    function setBadge(text, bg, fg) {
+        var b = $('status-badge');
+        b.textContent = text;
+        b.style.background = bg;
+        b.style.color = fg;
+    }
+
+    function testConnection() {
+        setBadge('Testing...', '#fff3e0', '#e65100');
+        call(API_TEST, {}).then(function (data) {
+            if (data && data.ok) {
+                setBadge('Connected', '#e8f5e9', '#2e7d32');
+                refreshStats();
+            } else {
+                setBadge((data && data.error) || 'Error', '#fce4ec', '#c62828');
+            }
+        }).catch(function () {
+            setBadge('API unavailable', '#fce4ec', '#c62828');
+        });
+    }
+
+    function renderBreakdown(el, obj) {
+        if (!obj || Object.keys(obj).length === 0) {
+            el.textContent = '—';
+            return;
+        }
+        var items = Object.keys(obj).slice(0, 5).map(function (k) {
+            return k + ': ' + obj[k];
+        });
+        el.textContent = '';
+        items.forEach(function (i) { var d = document.createElement('div'); d.textContent = i; el.appendChild(d); });
+    }
+
+    function refreshStats() {
+        call(API_STATS, {}).then(function (data) {
+            if (!data || !data.ok) {
+                $('stats-wrap').style.display = 'none';
+                return;
+            }
+            var s = data.stats || {};
+            $('stats-wrap').style.display = 'block';
+            $('total').textContent = s.sample_size || 0;
+            $('oldest').textContent = s.oldest ? String(s.oldest).slice(0, 10) : '—';
+            $('newest').textContent = s.newest ? String(s.newest).slice(0, 10) : '—';
+            renderBreakdown($('types'), s.types);
+            renderBreakdown($('sources'), s.sources);
+            renderBreakdown($('topics'), s.topics);
+        }).catch(function () {
+            $('stats-wrap').style.display = 'none';
+        });
+    }
+
+    setTimeout(function() {
+        $('test-btn').onclick = testConnection;
+        $('stats-btn').onclick = refreshStats;
+        testConnection();
+    }, 50);
+})();
+</script>
