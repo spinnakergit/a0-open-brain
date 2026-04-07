@@ -101,19 +101,33 @@ def is_configured(config: dict) -> tuple[bool, str]:
 
 
 def _safe_supabase_url(url: str) -> str:
-    """Normalize a Supabase URL.
+    """Normalize and validate a Supabase URL.
 
     Handles the common mistake of pasting the Supabase dashboard URL
     (https://supabase.com/dashboard/project/<ref>) instead of the API URL
     (https://<ref>.supabase.co).
+
+    Validates that the final URL is a legitimate *.supabase.co endpoint
+    to prevent credential exfiltration via config-hijacked URLs.
     """
     import re
+    from urllib.parse import urlparse
 
     url = (url or "").strip().rstrip("/")
+    if not url:
+        return url
     # Detect dashboard URL and convert to API URL
     m = re.match(r"https?://supabase\.com/dashboard/project/([a-z0-9]+)", url)
     if m:
         url = f"https://{m.group(1)}.supabase.co"
+    # Validate: must be HTTPS and *.supabase.co
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError("Supabase URL must use HTTPS.")
+    if not parsed.netloc.endswith(".supabase.co"):
+        raise ValueError(
+            "URL must be a Supabase endpoint (*.supabase.co)."
+        )
     return url
 
 

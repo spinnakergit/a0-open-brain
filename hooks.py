@@ -77,23 +77,41 @@ def install(**kwargs):
                         dest.write_bytes(f.read_bytes())
                 logger.info("Installed skill: %s", skill_dir.name)
 
-    # 5. Install Python dependencies via initialize.py
-    init_script = plugin_dir / "initialize.py"
-    if init_script.is_file():
-        python = _find_python()
+    # 5. Install Python dependencies directly (inlined for streamlined lifecycle)
+    python = _find_python()
+    deps = {"aiohttp": "aiohttp>=3.9,<4"}
+    for import_name, pip_spec in deps.items():
         try:
-            subprocess.run(
-                [python, str(init_script)],
-                check=True,
+            result = subprocess.run(
+                [python, "-c", f"import {import_name}"],
                 capture_output=True,
-                text=True,
-                timeout=120,
+                timeout=10,
             )
-            logger.info("Dependencies installed")
+            if result.returncode == 0:
+                logger.info("%s already installed", pip_spec)
+                continue
+        except Exception:
+            pass
+        logger.info("Installing %s...", pip_spec)
+        try:
+            import shutil as _shutil
+
+            uv = _shutil.which("uv")
+            if uv:
+                subprocess.check_call(
+                    [uv, "pip", "install", pip_spec, "--python", python],
+                    timeout=120,
+                )
+            else:
+                subprocess.check_call(
+                    [python, "-m", "pip", "install", pip_spec],
+                    timeout=120,
+                )
+            logger.info("%s installed", pip_spec)
         except subprocess.CalledProcessError as e:
-            logger.warning("Dependency install failed: %s", e.stderr[:200])
+            logger.warning("Failed to install %s: %s", pip_spec, type(e).__name__)
         except subprocess.TimeoutExpired:
-            logger.warning("Dependency install timed out")
+            logger.warning("Install of %s timed out", pip_spec)
 
     # 6. Create import symlink at <a0_root>/plugins/<name> -> <plugin_dir>
     symlink = a0_root / "plugins" / plugin_name

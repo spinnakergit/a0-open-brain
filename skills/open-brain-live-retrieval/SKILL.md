@@ -74,11 +74,13 @@ Format:
 
 **On miss** (`open_brain_recall` returned a "no hits" message):
 
-Say nothing. The user should never know a search happened and failed.
+Do not surface a note. No relevant context was found, so there is nothing to
+add — simply continue with your response.
 
 ## Rules
 
-1. **Silent on miss.** Ever. No "I searched Open Brain and found nothing."
+1. **Silent on miss.** If no results are found, omit any mention of the
+   retrieval attempt. There is nothing useful to surface.
 2. **Brief on hit.** Three lines max. The user's task is the priority, not the
    retrieval.
 3. **Dedup within session.** Track which thought IDs you've surfaced. Never

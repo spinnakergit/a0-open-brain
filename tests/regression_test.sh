@@ -380,7 +380,84 @@ else
 fi
 
 ########################################
-section "11. Config scaffold anti-pattern check"
+section "11. Supabase URL domain validation"
+########################################
+
+# _safe_supabase_url must accept valid *.supabase.co URLs
+RESULT=$(pyexec "
+from usr.plugins.open_brain.helpers.open_brain_client import _safe_supabase_url
+# Valid API URL
+u = _safe_supabase_url('https://abcdef123.supabase.co')
+print('valid_ok' if u == 'https://abcdef123.supabase.co' else 'valid_bad')
+# Dashboard URL auto-corrected
+u = _safe_supabase_url('https://supabase.com/dashboard/project/abcdef123')
+print('dash_ok' if u == 'https://abcdef123.supabase.co' else 'dash_bad')
+# Empty string passes through
+u = _safe_supabase_url('')
+print('empty_ok' if u == '' else 'empty_bad')
+")
+
+if echo "$RESULT" | grep -q "valid_ok"; then
+    pass "T11.1 Accepts valid *.supabase.co URL"
+else
+    fail "T11.1 Valid Supabase URL" "$RESULT"
+fi
+
+if echo "$RESULT" | grep -q "dash_ok"; then
+    pass "T11.2 Dashboard URL auto-corrected to API URL"
+else
+    fail "T11.2 Dashboard URL correction" "$RESULT"
+fi
+
+if echo "$RESULT" | grep -q "empty_ok"; then
+    pass "T11.3 Empty string passes through"
+else
+    fail "T11.3 Empty URL handling" "$RESULT"
+fi
+
+# _safe_supabase_url must REJECT non-Supabase domains
+RESULT=$(pyexec "
+from usr.plugins.open_brain.helpers.open_brain_client import _safe_supabase_url
+# Non-Supabase domain must raise ValueError
+try:
+    _safe_supabase_url('https://evil.example.com')
+    print('reject_bad')
+except ValueError:
+    print('reject_ok')
+# HTTP (not HTTPS) must raise ValueError
+try:
+    _safe_supabase_url('http://abcdef123.supabase.co')
+    print('http_bad')
+except ValueError:
+    print('http_ok')
+# Subdomain spoofing must raise ValueError
+try:
+    _safe_supabase_url('https://supabase.co.evil.com')
+    print('spoof_bad')
+except ValueError:
+    print('spoof_ok')
+")
+
+if echo "$RESULT" | grep -q "reject_ok"; then
+    pass "T11.4 Rejects non-Supabase domain"
+else
+    fail "T11.4 Non-Supabase domain rejection" "$RESULT"
+fi
+
+if echo "$RESULT" | grep -q "http_ok"; then
+    pass "T11.5 Rejects HTTP (requires HTTPS)"
+else
+    fail "T11.5 HTTP rejection" "$RESULT"
+fi
+
+if echo "$RESULT" | grep -q "spoof_ok"; then
+    pass "T11.6 Rejects subdomain spoofing (supabase.co.evil.com)"
+else
+    fail "T11.6 Subdomain spoof rejection" "$RESULT"
+fi
+
+########################################
+section "12. Config scaffold anti-pattern check"
 ########################################
 
 # config.html MUST NOT contain inner Save buttons or custom fetch logic.
