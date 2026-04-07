@@ -63,21 +63,7 @@ def install(**kwargs):
             json.dump({}, f)
         logger.info("Created config.json with 0o600 permissions")
 
-    # 4. Install skills
-    skills_src = plugin_dir / "skills"
-    skills_dst = a0_root / "usr" / "skills"
-    if skills_src.is_dir():
-        for skill_dir in skills_src.iterdir():
-            if skill_dir.is_dir():
-                target = skills_dst / skill_dir.name
-                target.mkdir(parents=True, exist_ok=True)
-                for f in skill_dir.iterdir():
-                    dest = target / f.name
-                    if f.is_file():
-                        dest.write_bytes(f.read_bytes())
-                logger.info("Installed skill: %s", skill_dir.name)
-
-    # 5. Install Python dependencies directly (inlined for streamlined lifecycle)
+    # 4. Install Python dependencies directly (inlined for streamlined lifecycle)
     python = _find_python()
     deps = {"aiohttp": "aiohttp>=3.9,<4"}
     for import_name, pip_spec in deps.items():
@@ -113,7 +99,7 @@ def install(**kwargs):
         except subprocess.TimeoutExpired:
             logger.warning("Install of %s timed out", pip_spec)
 
-    # 6. Create import symlink at <a0_root>/plugins/<name> -> <plugin_dir>
+    # 5. Create import symlink at <a0_root>/plugins/<name> -> <plugin_dir>
     symlink = a0_root / "plugins" / plugin_name
     if not symlink.exists():
         try:
@@ -121,16 +107,6 @@ def install(**kwargs):
             logger.info("Created symlink: %s -> %s", symlink, plugin_dir)
         except Exception:
             logger.debug("Could not create symlink (may already exist)")
-
-    # 7. Mirror to /git/agent-zero if running in /a0 runtime
-    if str(a0_root) == "/a0" and Path("/git/agent-zero/usr").is_dir():
-        git_plugin = Path("/git/agent-zero/usr/plugins") / plugin_name
-        if not git_plugin.exists():
-            try:
-                import shutil
-                shutil.copytree(str(plugin_dir), str(git_plugin))
-            except Exception:
-                pass
 
     logger.info("Post-install hook complete")
 
@@ -147,18 +123,4 @@ def uninstall(**kwargs):
     if symlink.is_symlink():
         symlink.unlink()
         logger.info("Removed symlink: %s", symlink)
-
-    # Remove skills
-    skills_dst = a0_root / "usr" / "skills"
-    for skill_name in [
-        "open-brain-auto-capture",
-        "open-brain-live-retrieval",
-        "open-brain-daily-digest",
-    ]:
-        skill_path = skills_dst / skill_name
-        if skill_path.is_dir():
-            import shutil
-            shutil.rmtree(str(skill_path))
-            logger.info("Removed skill: %s", skill_name)
-
     logger.info("Uninstall hook complete")

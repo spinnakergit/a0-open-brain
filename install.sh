@@ -47,14 +47,6 @@ cp -r "$SCRIPT_DIR/webui" "$PLUGIN_DIR/"
 mkdir -p "$PLUGIN_DIR/data"
 chmod 700 "$PLUGIN_DIR/data"
 
-SKILLS_DIR="$A0_ROOT/usr/skills"
-echo "Copying skills..."
-for skill_dir in "$SCRIPT_DIR/skills"/*/; do
-    skill_name="$(basename "$skill_dir")"
-    mkdir -p "$SKILLS_DIR/$skill_name"
-    cp -r "$skill_dir"* "$SKILLS_DIR/$skill_name/"
-done
-
 echo "Installing dependencies..."
 python3 "$PLUGIN_DIR/initialize.py" || python "$PLUGIN_DIR/initialize.py"
 
@@ -64,12 +56,6 @@ SYMLINK="$A0_ROOT/plugins/open_brain"
 if [ ! -e "$SYMLINK" ]; then
     ln -sf "$PLUGIN_DIR" "$SYMLINK"
     echo "Created symlink: $SYMLINK -> $PLUGIN_DIR"
-fi
-
-if [ "$A0_ROOT" = "/a0" ] && [ -d "/git/agent-zero/usr" ]; then
-    GIT_PLUGIN="/git/agent-zero/usr/plugins/open_brain"
-    mkdir -p "$(dirname "$GIT_PLUGIN")"
-    cp -r "$PLUGIN_DIR" "$GIT_PLUGIN" 2>/dev/null || true
 fi
 
 echo ""
